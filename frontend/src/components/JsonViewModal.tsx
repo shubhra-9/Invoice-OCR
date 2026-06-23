@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
+import { syncInvoiceToSAP } from "../services/api";
 
 interface JsonViewerModalProps {
     fileName: string;
     data: Record<string, any> | null;
+    invoiceId?: string;
     onClose: () => void;
     onCopy: () => void;
     onDownload: () => void;
@@ -27,6 +29,13 @@ const DownloadIcon = () => (
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
         <polyline points="7 10 12 15 17 10" />
         <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+);
+
+const SendIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13" />
+        <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
 );
 
@@ -88,16 +97,36 @@ const renderJsonValue = (value: any): React.ReactNode => {
 export default function JsonViewerModal({
     fileName,
     data,
+    invoiceId,
     onClose,
     onCopy,
     onDownload,
 }: JsonViewerModalProps) {
+    const [syncing, setSyncing] = useState(false);
+    const [syncStatus, setSyncStatus] = useState<"idle" | "success" | "error">("idle");
+    const [syncMsg, setSyncMsg] = useState("");
+
     if (!data) return null;
 
+    const handleSendToSAP = async () => {
+        if (!invoiceId) return;
+        setSyncing(true);
+        setSyncStatus("idle");
+        setSyncMsg("");
+
+        try {
+            const result = await syncInvoiceToSAP(invoiceId);
+            setSyncStatus("success");
+            setSyncMsg(result.message || "Synced successfully!");
+        } catch (err: any) {
+            setSyncStatus("error");
+            setSyncMsg(err.message || "Failed to sync to SAP.");
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     // Check if data has backend response structure (success, message, file_name, data)
-    const isBackendResponse = "success" in data || "message" in data;
-    const rawExtracted = isBackendResponse && "data" in data ? data.data : data;
-    const extractedData = rawExtracted || {};
 
     return (
         <div className="modal-backdrop" onClick={onClose}>
@@ -112,15 +141,15 @@ export default function JsonViewerModal({
                     </button>
                 </div>
                 <div className="modal-body">
-                    <div 
-                        className="json-viewer-container" 
-                        style={{ 
-                            backgroundColor: "#f9f9f9", 
-                            padding: "20px", 
-                            borderRadius: "8px", 
-                            overflowY: "auto", 
-                            maxHeight: "60vh", 
-                            fontFamily: "monospace", 
+                    <div
+                        className="json-viewer-container"
+                        style={{
+                            backgroundColor: "#f9f9f9",
+                            padding: "20px",
+                            borderRadius: "8px",
+                            overflowY: "auto",
+                            maxHeight: "60vh",
+                            fontFamily: "monospace",
                             fontSize: "14px",
                             border: "1px solid #eee"
                         }}
@@ -128,7 +157,18 @@ export default function JsonViewerModal({
                         {renderJsonValue(data)}
                     </div>
                 </div>
-                <div className="modal-footer">
+                <div className="modal-footer" style={{ flexWrap: "wrap", gap: "10px" }}>
+                    {invoiceId && (
+                        <button
+                            className="btn btn-primary"
+                            style={{ backgroundColor: "#28a745", borderColor: "#28a745" }}
+                            onClick={handleSendToSAP}
+                            disabled={syncing}
+                        >
+                            <SendIcon />
+                            {syncing ? "Sending..." : "Send to SAP"}
+                        </button>
+                    )}
                     <button className="btn btn-outlined" onClick={onCopy}>
                         <CopyIcon />
                         Copy JSON
@@ -137,7 +177,19 @@ export default function JsonViewerModal({
                         <DownloadIcon />
                         Download JSON
                     </button>
-                    <div className="modal-footer-spacer" />
+                    <div className="modal-footer-spacer" style={{ flexGrow: 1 }} />
+
+                    {syncStatus !== "idle" && (
+                        <span style={{
+                            fontSize: "0.85rem",
+                            color: syncStatus === "success" ? "green" : "red",
+                            alignSelf: "center",
+                            marginRight: "auto"
+                        }}>
+                            {syncMsg}
+                        </span>
+                    )}
+
                     <button className="btn btn-primary" onClick={onClose}>
                         Close
                     </button>

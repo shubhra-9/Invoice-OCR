@@ -1,23 +1,25 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, BackgroundTasks, Form
 from fastapi.middleware.cors import CORSMiddleware
-from config import UPLOAD_DIR, OUTPUT_DIR
+from sqlalchemy.orm import Session
+
+import os
 
 import uuid
 import json
 import logging
 
-from ocr import extract_text_from_pdf
-from extractor import parse_invoice_text
+from services.ocr import extract_text_from_pdf
+from services.extractor import parse_invoice_text
 
-# --------------------------------------------------
-# Configuration
-# --------------------------------------------------
+from db.database import engine, get_db, Base
+import db.models as models
+from routers import repos, webhooks, documents, sap
+from auth.security import get_current_user
+
+# Create database tables
+Base.metadata.create_all(bind=engine)
 
 
-UPLOAD_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
-
-ALLOWED_TYPES = ["application/pdf"]
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -57,76 +59,7 @@ def health():
         "status": "ok"
     }
 
-# --------------------------------------------------
-# Upload Endpoint
-# --------------------------------------------------
-
-@app.post("/upload/")
-async def upload(file: UploadFile = File(...)):
-
-    if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail="Only PDF files are allowed."
-        )
-
-    original_filename = file.filename or "invoice.pdf"
-
-    unique_filename = f"{uuid.uuid4()}_{original_filename}"
-
-    file_path = UPLOAD_DIR / unique_filename
-
-    try:
-        logger.info(f"Receiving file: {original_filename}")
-
-        content = await file.read()
-
-        with open(file_path, "wb") as f:
-            f.write(content)
-
-        logger.info(f"Saved file: {file_path}")
-
-        # OCR Extraction
-        logger.info("Running OCR...")
-
-        ocr_text = extract_text_from_pdf(str(file_path))
-
-        # Structured Data Extraction
-        logger.info("Parsing invoice fields...")
-
-        extracted_data = parse_invoice_text(ocr_text)
-
-        if not extracted_data.get("Invoice_No") and not extracted_data.get("Purchase_Order"):
-            from fastapi.responses import JSONResponse
-            logger.warning("File is not recognized as a valid invoice (missing Invoice No and PO).")
-            return JSONResponse(
-                status_code=400,
-                content={
-                    "success": False,
-                    "error": "Invalid Document",
-                    "message": "The uploaded file does not appear to be a valid invoice (Missing Invoice No and PO)."
-                }
-            )
-
-        # Save JSON output
-        output_path = OUTPUT_DIR / unique_filename.replace(".pdf", ".json")
-
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(
-                extracted_data,
-                f,
-                indent=4,
-                ensure_ascii=False
-            )
-
-        logger.info(f"Saved extracted data: {output_path}")
-
-        return extracted_data
-
-    except Exception as e:
-        logger.exception("Error processing invoice")
-
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error processing file: {str(e)}"
-        )
+app.include_router(repos.router, prefix="/repos", tags=["repos"])
+app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
+app.include_router(documents.router, tags=["documents"])
+app.include_router(sap.router)

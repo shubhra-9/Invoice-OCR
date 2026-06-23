@@ -5,7 +5,7 @@ import pytesseract
 import pdfplumber
 from pdf2image import convert_from_path
 
-from preprocessing import preprocess_image
+from services.preprocessing import preprocess_image
 from config import POPPLER_PATH, OCR_LANGUAGE
 
 logger = logging.getLogger(__name__)

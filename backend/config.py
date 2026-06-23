@@ -39,13 +39,14 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = "llama-3.3-70b-versatile"
 
 # ----------------------------------------
-# Directories
+# SAP Configuration
 # ----------------------------------------
 
-BASE_DIR = Path(__file__).parent
+SAP_TOKEN_URL = os.getenv("SAP_TOKEN_URL", "")
+SAP_CLIENT_ID = os.getenv("SAP_CLIENT_ID", "")
+SAP_CLIENT_SECRET = os.getenv("SAP_CLIENT_SECRET", "")
+SAP_SCOPE = os.getenv("SAP_SCOPE", "")
+SAP_ODATA_URL = os.getenv("SAP_ODATA_URL", "")
+SAP_REQUIRE_CSRF = os.getenv("SAP_REQUIRE_CSRF", "true").lower() == "true"
 
-UPLOAD_DIR = BASE_DIR / "uploads"
-OUTPUT_DIR = BASE_DIR / "output"
-
-UPLOAD_DIR.mkdir(exist_ok=True)
-OUTPUT_DIR.mkdir(exist_ok=True)
+

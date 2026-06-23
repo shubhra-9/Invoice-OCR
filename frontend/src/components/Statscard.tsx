@@ -3,6 +3,8 @@ interface StatsCardsProps {
     pending: number;
     processed: number;
     failed: number;
+    onCardClick?: (label: string) => void;
+    selectedCard?: string;
 }
 
 // ─── SVG Icons ──────────────────────────────────────────────────────────
@@ -38,32 +40,171 @@ const ErrorIcon = () => (
     </svg>
 );
 
+import StatsCardWrapper from "./dashboard/StatsCardWrapper";
+
 export default function StatsCards({
     total,
     pending,
     processed,
     failed,
+    onCardClick,
+    selectedCard,
 }: StatsCardsProps) {
     const cards = [
-        { label: "Total Invoices", value: total, classAccent: "stats-total", icon: <ReceiptIcon /> },
-        { label: "Pending", value: pending, classAccent: "stats-pending", icon: <ClockIcon /> },
-        { label: "Processed", value: processed, classAccent: "stats-successful", icon: <CheckCircleIcon /> },
-        { label: "Failed", value: failed, classAccent: "stats-failed", icon: <ErrorIcon /> },
+        {
+            label: "Total Invoices",
+            value: total,
+            variant: "success" as const,
+            iconBg: "#DCFCE7",
+            iconColor: "#16A34A",
+            icon: <ReceiptIcon />
+        },
+        {
+            label: "Pending",
+            value: pending,
+            variant: "warning" as const,
+            iconBg: "#FEF3C7",
+            iconColor: "#D97706",
+            icon: <ClockIcon />
+        },
+        {
+            label: "Processed",
+            value: processed,
+            variant: "success" as const,
+            iconBg: "#DCFCE7",
+            iconColor: "#16A34A",
+            icon: <CheckCircleIcon />
+        },
+        {
+            label: "Failed",
+            value: failed,
+            variant: "danger" as const,
+            iconBg: "#FEE2E2",
+            iconColor: "#DC2626",
+            icon: <ErrorIcon />
+        },
     ];
 
     return (
-        <div className="stats-grid">
-            {cards.map((card) => (
-                <div key={card.label} className={`glass-card stats-card ${card.classAccent}`}>
-                    <div className="stats-info">
-                        <div className="stats-label">{card.label}</div>
-                        <div className="stats-value">{card.value}</div>
-                    </div>
-                    <div className="stats-icon-box">
-                        {card.icon}
-                    </div>
-                </div>
-            ))}
-        </div>
+        <>
+            <style>{`
+            .stat-card-custom {
+                transition: all 0.3s ease !important;
+            }
+            .stat-card-custom .stats-info .stats-label,
+            .stat-card-custom .stats-info .stats-value {
+                transition: color 0.3s ease;
+            }
+            
+            /* Base Card styles to prevent layout jump on border change */
+            .stat-card-custom {
+                border: 2px solid transparent !important;
+                transition: all 0.3s ease !important;
+            }
+            
+            /* Success (Green) */
+            .stat-card-custom.unselected-success {
+                background-color: white !important;
+                box-shadow: 0 0 15px rgba(16, 185, 129, 0.2) !important;
+            }
+            .stat-card-custom.unselected-success:hover,
+            .stat-card-custom.selected-success {
+                background-color: #DCFCE7 !important;
+                border: 2px solid #16A34A !important;
+                box-shadow: none !important;
+            }
+            
+            /* Warning (Orange) */
+            .stat-card-custom.unselected-warning {
+                background-color: white !important;
+                box-shadow: 0 0 15px rgba(245, 158, 11, 0.2) !important;
+            }
+            .stat-card-custom.unselected-warning:hover,
+            .stat-card-custom.selected-warning {
+                background-color: #FEF3C7 !important;
+                border: 2px solid #D97706 !important;
+                box-shadow: none !important;
+            }
+            
+            /* Danger (Red) */
+            .stat-card-custom.unselected-danger {
+                background-color: white !important;
+                box-shadow: 0 0 15px rgba(239, 68, 68, 0.2) !important;
+            }
+            .stat-card-custom.unselected-danger:hover,
+            .stat-card-custom.selected-danger {
+                background-color: #FEE2E2 !important;
+                border: 2px solid #DC2626 !important;
+                box-shadow: none !important;
+            }
+            
+            /* Text colors remain dark in all states */
+            .stat-card-custom .stats-info .stats-label {
+                color: #64748b !important;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+            .stat-card-custom .stats-info .stats-value {
+                color: #0f172a !important;
+            }
+            
+            /* Icon box transparent in all states */
+            .stat-card-custom .stats-icon-box {
+                background-color: transparent !important;
+            }
+            
+            /* Icon colors based on variant */
+            .stat-card-custom[class*="-success"] .stats-icon-box { color: #16A34A !important; }
+            .stat-card-custom[class*="-warning"] .stats-icon-box { color: #D97706 !important; }
+            .stat-card-custom[class*="-danger"] .stats-icon-box { color: #DC2626 !important; }
+        `}</style>
+            <div className="stats-grid" style={{ backgroundImage: "url('/statbg.jpg')", backgroundSize: 'cover', backgroundPosition: 'center', padding: '24px', borderRadius: '24px' }}>
+                {cards.map((card, index) => {
+                    const isSelected = selectedCard === card.label;
+                    const customClass = `stat-card-custom ${isSelected ? 'selected' : 'unselected'}-${card.variant}`;
+                    return (
+                        <StatsCardWrapper
+                            key={card.label}
+                            isActive={isSelected}
+                            onClick={() => onCardClick?.(card.label)}
+                            delay={index * 100}
+                            variant={card.variant}
+                            className={customClass}
+                        >
+                            <div
+                                style={{
+                                    padding: "24px",
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    transition: "opacity 0.2s",
+                                    height: "100%",
+                                    boxSizing: "border-box"
+                                }}
+                            >
+                                <div className="stats-info">
+                                    <div className="stats-label">{card.label}</div>
+                                    <div className="stats-value">{card.value}</div>
+                                </div>
+                                <div
+                                    className="stats-icon-box"
+                                    style={{
+                                        width: "48px",
+                                        height: "48px",
+                                        borderRadius: "12px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        flexShrink: 0
+                                    }}
+                                >
+                                    {card.icon}
+                                </div>
+                            </div>
+                        </StatsCardWrapper>
+                    );
+                })}
+            </div>
+        </>
     );
 }
