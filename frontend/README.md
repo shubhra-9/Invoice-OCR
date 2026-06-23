@@ -1,73 +1,52 @@
-# React + TypeScript + Vite
+# Invoice OCR - Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This is the frontend application for the Invoice OCR & Management System. It provides a secure, beautifully animated, and responsive user interface for managing document repositories and extracting data from invoices.
 
-Currently, two official plugins are available:
+## 🛠️ Technology Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+*   **React 18**: Core UI library.
+*   **Vite**: Lightning-fast build tool and development server.
+*   **TypeScript**: For static type safety and enhanced developer experience.
+*   **Tailwind CSS**: Utility-first styling for rapid, responsive design.
+*   **Framer Motion**: Complex physics-based animations for a premium feel.
+*   **Clerk**: Complete user authentication and identity management.
+*   **React Router DOM**: Client-side routing for seamless navigation.
 
-## React Compiler
+## 📁 Directory Structure
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```text
+src/
+├── assets/       # Static images and media files
+├── components/   # Reusable UI components (Modals, Tables, Cards)
+│   ├── dashboard/  # Dashboard-specific components
+│   └── home/       # Landing page-specific components
+├── pages/        # Full page views (HomePage, Dashboard, SignIn, etc.)
+├── services/     # API connection logic (fetch calls to FastAPI backend)
+├── utils/        # Helper functions
+├── App.tsx       # Main router and security wrappers
+└── main.tsx      # Entry point and global providers (ClerkProvider)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 🚀 Getting Started
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### 1. Install Dependencies
+Make sure you are in the `/frontend` directory, then run:
+```bash
+npm install
 ```
+
+### 2. Environment Variables
+You must connect the frontend to your Clerk account to enable logins. 
+Create a `.env.local` file in this `/frontend` directory and add your Publishable Key:
+```env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_clerk_key_here
+```
+
+### 3. Start Development Server
+```bash
+npm run dev
+```
+The app will start instantly. Open your browser to `http://localhost:5173`.
+
+## 🔗 Connecting to the Backend
+By default, the `services/api.ts` file is configured to communicate with the FastAPI backend at `http://localhost:8000`. Make sure the backend server is running simultaneously for full functionality (especially for PDF uploads and data extraction).
