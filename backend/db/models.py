@@ -15,11 +15,6 @@ class DocumentStatus(str, enum.Enum):
     completed = "completed"
     failed = "failed"
 
-class SAPSyncStatus(str, enum.Enum):
-    pending = "PENDING"
-    success = "SUCCESS"
-    failed = "FAILED"
-
 class User(Base):
     __tablename__ = "users"
 
@@ -28,7 +23,6 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
     repositories = relationship("Repository", back_populates="owner", cascade="all, delete-orphan")
 
 class Repository(Base):
@@ -56,14 +50,6 @@ class Document(Base):
     status = Column(SQLEnum(DocumentStatus), default=DocumentStatus.pending_upload)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-
-    # SAP Synchronization fields
-    sap_sync_status = Column(SQLEnum(SAPSyncStatus), nullable=True)
-    sap_document_no = Column(String, nullable=True)
-    sap_response = Column(JSONB, nullable=True)
-    sap_synced_at = Column(DateTime(timezone=True), nullable=True)
-    sap_error_message = Column(Text, nullable=True)
-
     repository = relationship("Repository", back_populates="documents")
     extraction_result = relationship("ExtractionResult", back_populates="document", uselist=False, cascade="all, delete-orphan")
     processing_logs = relationship("ProcessingLog", back_populates="document", cascade="all, delete-orphan")
@@ -74,8 +60,6 @@ class ExtractionResult(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     document_id = Column(UUID(as_uuid=True), ForeignKey("documents.id"), nullable=False, unique=True)
     extracted_data = Column(JSONB, nullable=True)
-    confidence_score = Column(Float, nullable=True)
-    processing_time_ms = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     document = relationship("Document", back_populates="extraction_result")

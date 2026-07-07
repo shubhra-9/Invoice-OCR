@@ -2,7 +2,6 @@ import os
 import logging
 from typing import Optional
 
-import httpx
 import jwt
 from jwt import PyJWKClient
 from fastapi import Depends, HTTPException, status, Request
@@ -45,6 +44,7 @@ def _verify_clerk_token(token: str) -> dict:
                 "verify_exp": True,
                 "verify_aud": False,  # Clerk JWTs don't always have an audience claim
             },
+            leeway=60,  # Fixes clock skew "The token is not yet valid (iat)" errors
         )
         return decoded
     except jwt.ExpiredSignatureError:

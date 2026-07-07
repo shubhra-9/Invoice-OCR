@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
-from db.models import DocumentStatus, SAPSyncStatus
+from db.models import DocumentStatus
 
 class UserResponse(BaseModel):
     id: UUID
@@ -24,8 +24,6 @@ class RepositoryResponse(BaseModel):
 class ExtractionResultResponse(BaseModel):
     id: UUID
     extracted_data: Optional[Dict[str, Any]]
-    confidence_score: Optional[float]
-    processing_time_ms: Optional[int]
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -39,12 +37,5 @@ class DocumentResponse(BaseModel):
     file_size: Optional[int]
     created_at: datetime
     extraction: Optional[ExtractionResultResponse] = None
-
-    # SAP Tracking
-    sap_sync_status: Optional[SAPSyncStatus] = None
-    sap_document_no: Optional[str] = None
-    sap_synced_at: Optional[datetime] = None
-    sap_error_message: Optional[str] = None
-    
     model_config = ConfigDict(from_attributes=True)
 

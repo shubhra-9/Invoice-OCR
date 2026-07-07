@@ -100,9 +100,7 @@ export default function App() {
       <Route path="/sign-up" element={
         <AuthRoute><SignUpPage /></AuthRoute>
       } />
-      {/* Keep old routes as redirects for backward compat */}
-      <Route path="/login" element={<Navigate to="/sign-in" replace />} />
-      <Route path="/signup" element={<Navigate to="/sign-up" replace />} />
+
       <Route
         path="/dashboard"
         element={

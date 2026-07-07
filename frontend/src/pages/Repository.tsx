@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import type { InvoiceFile } from "../types";
 import type { Repository } from "../services/api";
 import {
   getRepositories,
@@ -6,12 +7,19 @@ import {
   deleteRepository,
   getRepoInvoices,
   uploadInvoice,
-  assignInvoiceToRepo,
   removeInvoiceFromRepo,
   processInvoice,
+  getInvoices,
 } from "../services/api";
-import { getInvoices } from "../services/api";
 import JsonViewerModal from "../components/JsonViewModal";
+import { copyJsonToClipboard, downloadJsonFile } from "../utils/jsonActions";
+
+import {
+  FolderIcon, PlusIcon, TrashIcon, PdfIcon, BackIcon,
+  EyeIcon, UnlinkIcon, CloudUploadIcon, PlayIcon
+} from "../components/Icons";
+import { formatBytes, formatDate, statusConfig } from "../utils/helpers";
+import CreateRepoModal from "../components/CreateRepoModal";
 
 interface RepoPageProps {
   onSnackbar: (msg: string, severity?: "success" | "error") => void;
@@ -22,35 +30,14 @@ interface RepoPageProps {
   onOpenSidebar?: () => void;
 }
 
-import {
-  FolderIcon, PlusIcon, TrashIcon, PdfIcon, BackIcon,
-  EyeIcon, UnlinkIcon, CloudUploadIcon, PlayIcon
-} from "../components/Icons";
-import { formatBytes, formatDate, statusConfig } from "../utils/helpers";
-import CreateRepoModal from "../components/CreateRepoModal";
-import AssignInvoiceModal from "../components/AssignInvoiceModal";
-
-export type InvoiceStatus = "Pending" | "Processing" | "Processed" | "Failed";
-
-export interface InvoiceItem {
-  id: string;
-  name: string;
-  size: number;
-  uploadDate: Date;
-  status: InvoiceStatus;
-  jsonData: Record<string, any>;
-  repo_id?: number | null;
-}
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onAutoCreateHandled, onOpenSidebar }: RepoPageProps) {
+export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onAutoCreateHandled }: RepoPageProps) {
   const [repos, setRepos] = useState<Repository[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
-  const [repoInvoices, setRepoInvoices] = useState<InvoiceItem[]>([]);
-  const [allInvoices, setAllInvoices] = useState<InvoiceItem[]>([]);
-  const [viewJson, setViewJson] = useState<InvoiceItem | null>(null);
+  const [repoInvoices, setRepoInvoices] = useState<InvoiceFile[]>([]);
+  const [viewJson, setViewJson] = useState<InvoiceFile | null>(null);
 
   // Create repo modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -60,15 +47,10 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
 
   // Upload-into-repo state
   const [repoDragging, setRepoDragging] = useState(false);
-  const [uploadingIds, setUploadingIds] = useState<Set<string>>(new Set());
   const repoFileRef = useRef<HTMLInputElement>(null);
 
   // Per-invoice processing state
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
-
-  // Assign from existing invoices modal
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [assigning, setAssigning] = useState(false);
 
   // Auto-open create modal when parent signals it
   useEffect(() => {
@@ -90,27 +72,9 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
     }
   }, []);
 
-  const loadAllInvoices = useCallback(async () => {
-    try {
-      const saved = await getInvoices();
-      setAllInvoices(
-        saved.map((inv: any) => ({
-          id: String(inv.id),
-          name: inv.original_filename || "invoice.pdf",
-          size: 0,
-          uploadDate: new Date(inv.created_at),
-          status: (inv.status || "Pending") as InvoiceStatus,
-          jsonData: inv.extracted_data,
-          repo_id: inv.repo_id ?? null,
-        }))
-      );
-    } catch { /* silent */ }
-  }, []);
-
   useEffect(() => {
     loadRepos();
-    loadAllInvoices();
-  }, [loadRepos, loadAllInvoices]);
+  }, [loadRepos]);
 
   const openRepo = async (repo: Repository) => {
     setSelectedRepo(repo);
@@ -120,9 +84,9 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
         invs.map((inv: any) => ({
           id: String(inv.id),
           name: inv.original_filename || "invoice.pdf",
-          size: 0,
+          size: inv.file_size || 0,
           uploadDate: new Date(inv.created_at),
-          status: (inv.status || "Pending") as InvoiceStatus,
+          status: (inv.status || "Pending") as InvoiceFile["status"],
           jsonData: inv.extracted_data,
           repo_id: inv.repo_id,
         }))
@@ -143,7 +107,7 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
     }
 
     // Immediately show temp rows as "Pending"
-    const tempItems: InvoiceItem[] = pdfFiles.map((f, i) => ({
+    const tempItems: InvoiceFile[] = pdfFiles.map((f, i) => ({
       id: `temp-${Date.now()}-${i}`,
       name: f.name,
       size: f.size,
@@ -158,8 +122,6 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
     for (let i = 0; i < pdfFiles.length; i++) {
       const file = pdfFiles[i];
       const tmpId = tempItems[i].id;
-
-      setUploadingIds((prev) => new Set(prev).add(tmpId));
 
       try {
         // 1. Upload to repo
@@ -189,18 +151,11 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
           prev.map((r) => (r.id === tmpId ? { ...r, status: "Failed" } : r))
         );
         onSnackbar(err.message || `Failed to upload ${file.name}`, "error");
-      } finally {
-        setUploadingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(tmpId);
-          return next;
-        });
       }
     }
 
     // Refresh repo list invoice counts
     await loadRepos();
-    await loadAllInvoices();
   };
 
   const handleRepoDrop = useCallback(
@@ -220,7 +175,7 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
 
   // ── Per-row process ────────────────────────────────────────────────────────
 
-  const handleProcess = async (inv: InvoiceItem) => {
+  const handleProcess = async (inv: InvoiceFile) => {
     try {
       setProcessingIds((prev) => new Set(prev).add(inv.id));
       setRepoInvoices((prev) => prev.map((r) => (r.id === inv.id ? { ...r, status: "Processing" } : r)));
@@ -251,7 +206,6 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
             } else {
               onSnackbar(`Processing failed for ${inv.name}`, "error");
             }
-            await loadAllInvoices();
           }
         } catch (e) {
           console.error("Polling error", e);
@@ -266,7 +220,9 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
         return next;
       });
     }
-  };  // ── Repo CRUD ──────────────────────────────────────────────────────────────
+  };
+
+  // ── Repo CRUD ──────────────────────────────────────────────────────────────
 
   const handleCreate = async () => {
     if (!newRepoName.trim()) return;
@@ -295,25 +251,8 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
       onSnackbar(`Repository "${repo.name}" deleted.`);
       if (selectedRepo?.id === repo.id) setSelectedRepo(null);
       await loadRepos();
-      await loadAllInvoices();
     } catch (err: any) {
       onSnackbar(err.message || "Failed to delete repository", "error");
-    }
-  };
-
-  const handleAssign = async (invoiceId: string) => {
-    if (!selectedRepo) return;
-    setAssigning(true);
-    try {
-      await assignInvoiceToRepo(selectedRepo.id, invoiceId);
-      onSnackbar("Invoice added to repository!");
-      await openRepo(selectedRepo);
-      await loadAllInvoices();
-      setShowAssignModal(false);
-    } catch (err: any) {
-      onSnackbar(err.message || "Failed to assign invoice", "error");
-    } finally {
-      setAssigning(false);
     }
   };
 
@@ -324,17 +263,12 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
       setRepoInvoices((prev) => prev.filter((inv) => String(inv.id) !== String(invoiceId)));
       await removeInvoiceFromRepo(selectedRepo.id, invoiceId);
       onSnackbar("Invoice removed from repository.");
-      await loadAllInvoices();
     } catch (err: any) {
       // Revert or show error
       await openRepo(selectedRepo);
       onSnackbar(err.message || "Failed to remove invoice", "error");
     }
   };
-
-  const unassignedInvoices = allInvoices.filter(
-    (inv) => inv.repo_id == null || inv.repo_id !== selectedRepo?.id
-  );
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -467,9 +401,6 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
             <span className="table-subtitle">
               {repoInvoices.length} invoice{repoInvoices.length !== 1 ? "s" : ""} in this repository
             </span>
-            <button className="btn btn-outlined" style={{ fontSize: "0.8rem" }} onClick={() => setShowAssignModal(true)}>
-              <PlusIcon /> Add Existing Invoice
-            </button>
           </div>
 
           <div className="glass-card table-card">
@@ -477,7 +408,7 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
               <div className="repo-empty-state" style={{ padding: "40px 24px" }}>
                 <span className="repo-empty-icon"><PdfIcon /></span>
                 <h3>No Invoices Yet</h3>
-                <p>Upload PDFs above or add existing invoices from your dashboard.</p>
+                <p>Upload PDFs above to get started.</p>
               </div>
             ) : (
               <>
@@ -501,7 +432,6 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
                       {repoInvoices.map((inv) => {
                         const sc = statusConfig[inv.status];
                         const isProcessing = processingIds.has(inv.id);
-                        const isUploading = uploadingIds.has(inv.id);
                         return (
                           <tr key={inv.id}>
                             <td>
@@ -577,16 +507,6 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
         creating={creating}
       />
 
-      {/* ── Add Existing Invoice Modal ─────────────────────────── */}
-      <AssignInvoiceModal
-        show={showAssignModal}
-        onClose={() => setShowAssignModal(false)}
-        selectedRepoName={selectedRepo?.name}
-        unassignedInvoices={unassignedInvoices}
-        handleAssign={handleAssign}
-        assigning={assigning}
-      />
-
       {/* JSON Viewer */}
       <JsonViewerModal
         fileName={viewJson?.name || ""}
@@ -594,17 +514,14 @@ export default function RepositoryPage({ onSnackbar, autoOpenCreate = false, onA
         invoiceId={viewJson?.id}
         onClose={() => setViewJson(null)}
         onCopy={() => {
-          if (viewJson) navigator.clipboard.writeText(JSON.stringify(viewJson.jsonData, null, 2));
+          if (viewJson) {
+            copyJsonToClipboard(viewJson.jsonData);
+            onSnackbar("JSON copied to clipboard!");
+          }
         }}
         onDownload={() => {
           if (viewJson) {
-            const blob = new Blob([JSON.stringify(viewJson.jsonData, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = viewJson.name.replace(".pdf", ".json");
-            a.click();
-            URL.revokeObjectURL(url);
+            downloadJsonFile(viewJson.jsonData, viewJson.name);
           }
         }}
       />

@@ -1,7 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, File, UploadFile, Form
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
-import uuid
 
 from db.database import get_db
 import db.models as models
@@ -11,8 +9,6 @@ import logging
 
 from services.ocr import extract_text_from_pdf
 from services.extractor import parse_invoice_text
-
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -85,8 +81,6 @@ def process_document_background(document_id: str):
     finally:
         db.commit()
 
-
-from fastapi import File, UploadFile, Form
 
 @router.post("/upload")
 def upload_document(

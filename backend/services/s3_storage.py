@@ -9,13 +9,14 @@ logger = logging.getLogger(__name__)
 
 class S3Storage:
     def __init__(self):
-        self.bucket = os.getenv("R2_BUCKET")
-        self.endpoint = os.getenv("R2_ENDPOINT")
-        self.access_key = os.getenv("R2_ACCESS_KEY_ID")
-        self.secret_key = os.getenv("R2_SECRET_ACCESS_KEY")
+        self.bucket = os.getenv("S3_BUCKET")
+        self.endpoint = os.getenv("S3_ENDPOINT")
+        self.access_key = os.getenv("S3_ACCESS_KEY_ID")
+        self.secret_key = os.getenv("S3_SECRET_ACCESS_KEY")
+        self.region = os.getenv("S3_REGION") or "ap-southeast-1"
         
         if not all([self.bucket, self.endpoint, self.access_key, self.secret_key]):
-            logger.warning("R2 Storage credentials are not fully configured")
+            logger.warning("S3 Storage credentials are not fully configured")
             self.s3 = None
         else:
             self.s3 = boto3.client(
@@ -24,12 +25,12 @@ class S3Storage:
                 aws_access_key_id=self.access_key,
                 aws_secret_access_key=self.secret_key,
                 config=Config(signature_version='s3v4', s3={'addressing_style': 'path'}),
-                region_name='ap-southeast-1'
+                region_name=self.region
             )
 
     def _check_client(self):
         if not self.s3:
-            raise ValueError("R2 client not initialized. Check credentials.")
+            raise ValueError("S3 client not initialized. Check credentials.")
 
     def generate_upload_url(self, object_key: str, expires_in: int = 3600) -> str:
         self._check_client()

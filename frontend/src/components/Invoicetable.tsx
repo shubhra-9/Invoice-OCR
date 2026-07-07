@@ -1,15 +1,7 @@
-
-
-type Status = "Pending" | "Processing" | "Processed" | "Failed";
-
-interface InvoiceFile {
-  id: string;
-  name: string;
-  size: number;
-  uploadDate: Date;
-  status: Status;
-  jsonData: Record<string, unknown>;
-}
+import type { InvoiceFile } from "../types";
+import { PdfIcon, TrashIcon, EyeIcon, PlayIcon } from "./Icons";
+import { formatBytes, formatDate } from "../utils/helpers";
+import StatusBadge from "./dashboard/StatusBadge";
 
 interface InvoiceTableProps {
   files: InvoiceFile[];
@@ -17,10 +9,6 @@ interface InvoiceTableProps {
   onDelete: (id: string) => void;
   onProcess?: (file: InvoiceFile) => void;
 }
-
-import { PdfIcon, TrashIcon, EyeIcon, PlayIcon } from "./Icons";
-import { formatBytes, formatDate } from "../utils/helpers";
-import StatusBadge from "./dashboard/StatusBadge";
 
 export default function InvoiceTable({ files, onView, onDelete, onProcess }: InvoiceTableProps) {
   return (

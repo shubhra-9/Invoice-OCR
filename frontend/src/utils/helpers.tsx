@@ -1,7 +1,6 @@
 import React from "react";
+import type { InvoiceStatus } from "../types";
 import { HourglassIcon, CheckCircleIcon, ErrorIcon } from "../components/Icons";
-
-export type InvoiceStatus = "Pending" | "Processing" | "Processed" | "Failed";
 
 export const formatBytes = (bytes: number) => {
   if (bytes === 0) return "—";

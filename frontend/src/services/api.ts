@@ -1,10 +1,17 @@
 /**
- * API Service for Invoice Processing
- *
- * Handles communication with FastAPI backend for PDF upload and processing.
- * Authentication tokens are provided by Clerk.
+ * API Service File (The "Bridge" to the Backend)
+ * 
+ * This file is NOT for fixing CORS. CORS is a security feature handled strictly by the Python backend.
+ * 
+ * Instead, this file acts as the central "Post Office" for your React app.
+ * Any time a React component (like Dashboard.tsx) needs to talk to the database, 
+ * it doesn't write the messy fetch() logic itself. It simply calls one of the neat, 
+ * pre-packaged functions in this file. 
+ * 
+ * This keeps the code clean and ensures every request automatically gets the Clerk Auth Token attached to it!
  */
 
+// This is the address where your Python FastAPI server is running
 const API_BASE_URL = "http://localhost:8000";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -18,9 +25,7 @@ export interface ExtractedInvoiceData {
   total_amount: string | null;
   raw_text?: string;
   page_count: number | null;
-  confidence_score: number | null;
   extraction_method: string | null;
-  processing_time_ms: number | null;
 }
 
 export interface UploadResponse {
@@ -73,12 +78,12 @@ export class ValidationError extends Error {
 // ─── Clerk Token Helper ─────────────────────────────────────────────────────
 
 /**
- * Get the current Clerk session token for API requests.
- * This uses the global Clerk instance exposed by @clerk/react.
+ * Whenever we send a request to the backend, we need to prove who we are.
+ * This function reaches into the browser's memory, grabs the current Clerk session, 
+ * and extracts the secret JWT token that proves the user is logged in.
  */
 const getClerkToken = async (): Promise<string | null> => {
   try {
-    // @clerk/react exposes window.Clerk after initialization
     const clerk = (window as any).Clerk;
     if (clerk?.session) {
       return await clerk.session.getToken();
@@ -89,13 +94,18 @@ const getClerkToken = async (): Promise<string | null> => {
   }
 };
 
+/**
+ * This takes the token from above and formats it into a standard HTTP "Authorization" header.
+ * Almost every single function below uses this to securely "stamp" their request before sending it to Python!
+ */
 const authHeader = async (): Promise<Record<string, string>> => {
   const token = await getClerkToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-// ─── API Functions ───────────────────────────────────────────────────────────
+// ─── API Functions (Invoice Management) ──────────────────────────────────────
 
+// Check if the Python backend is turned on and listening
 export const checkBackendHealth = async (): Promise<boolean> => {
   try {
     const response = await fetch(`${API_BASE_URL}/health`, { method: "GET" });
@@ -106,6 +116,7 @@ export const checkBackendHealth = async (): Promise<boolean> => {
   }
 };
 
+// Ensures the user isn't trying to upload massive files or non-PDFs before we even bother the backend
 export const validateFile = (file: File): void => {
   if (!file) throw new ValidationError("No file selected");
 
@@ -126,23 +137,26 @@ export const validateFile = (file: File): void => {
   }
 };
 
+// Takes a PDF file from the user's computer, attaches the Clerk auth token, and POSTs it to Python
 export const uploadInvoice = async (file: File, repoId: string | number): Promise<UploadResponse> => {
   validateFile(file);
   console.log("Starting upload for:", file.name, "to repo:", repoId);
 
   try {
-    const headers = await authHeader();
+    const headers = await authHeader(); // Grab the security stamp
 
+    // Prepare the file to be sent over the internet
     const formData = new FormData();
     formData.append("file", file);
     formData.append("repo_id", repoId.toString());
 
+    // Send the actual HTTP request to http://localhost:8000/upload
     const res = await fetch(`${API_BASE_URL}/upload`, {
       method: "POST",
-      headers, // Do NOT set Content-Type header manually, let fetch set it to multipart/form-data with boundary
+      headers,
       body: formData,
     });
-    
+
     const data = await res.json();
     if (!res.ok) {
       throw new APIError(res.status, data.error || "Error", data.detail || "Failed to upload file");
@@ -234,9 +248,7 @@ export const formatInvoiceData = (data: ExtractedInvoiceData): Record<string, un
     "GST Number": data.gst_number || "N/A",
     "Total Amount": data.total_amount || "N/A",
     Pages: data.page_count || 0,
-    Confidence: `${((data.confidence_score || 0) * 100).toFixed(1)}%`,
     Method: data.extraction_method || "N/A",
-    "Processing Time": `${(data.processing_time_ms || 0).toFixed(2)}ms`,
   };
 };
 
@@ -305,7 +317,7 @@ export const getRepoInvoices = async (repoId: number): Promise<any[]> => {
   return data.data;
 };
 
-export const assignInvoiceToRepo = async (repoId: number, invoiceId: number): Promise<void> => {
+export const assignInvoiceToRepo = async (repoId: number | string, invoiceId: number | string): Promise<void> => {
   const headers = await authHeader();
   const res = await fetch(`${API_BASE_URL}/repos/${repoId}/invoices`, {
     method: "POST",
@@ -318,7 +330,7 @@ export const assignInvoiceToRepo = async (repoId: number, invoiceId: number): Pr
   }
 };
 
-export const removeInvoiceFromRepo = async (repoId: number, invoiceId: number): Promise<void> => {
+export const removeInvoiceFromRepo = async (repoId: number | string, invoiceId: number | string): Promise<void> => {
   const headers = await authHeader();
   const res = await fetch(`${API_BASE_URL}/repos/${repoId}/invoices/${invoiceId}`, {
     method: "DELETE",

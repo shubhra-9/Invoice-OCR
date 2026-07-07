@@ -1,20 +1,11 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, BackgroundTasks, Form
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
 
-import os
-
-import uuid
-import json
 import logging
 
-from services.ocr import extract_text_from_pdf
-from services.extractor import parse_invoice_text
-
-from db.database import engine, get_db, Base
-import db.models as models
-from routers import repos, webhooks, documents, sap
-from auth.security import get_current_user
+from db.database import engine, Base
+import db.models  # Required to register tables with SQL Alchemy Base metadata
+from routers import repos, webhooks, documents
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -35,7 +26,8 @@ app = FastAPI(
 )
 
 # --------------------------------------------------
-# CORS
+# CORS Starlette handles it
+# the fast api object ,app, method is used to add a middleware CORS to handle request which have some parameters to instantiate 
 # --------------------------------------------------
 
 app.add_middleware(
@@ -62,4 +54,3 @@ def health():
 app.include_router(repos.router, prefix="/repos", tags=["repos"])
 app.include_router(webhooks.router, prefix="/webhooks", tags=["webhooks"])
 app.include_router(documents.router, tags=["documents"])
-app.include_router(sap.router)
