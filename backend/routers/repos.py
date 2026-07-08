@@ -5,7 +5,6 @@ from typing import Optional
 from db.database import get_db
 import db.models as models
 from auth.security import get_current_user
-from db.schemas import RepositoryResponse, DocumentResponse
 from services.s3_storage import storage
 
 router = APIRouter()

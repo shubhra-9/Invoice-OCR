@@ -5,8 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# We expect a PostgreSQL URL in the .env file like:
-# DATABASE_URL=postgresql://user:password@ep-xxx.neon.tech/dbname
+
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not SQLALCHEMY_DATABASE_URL:
