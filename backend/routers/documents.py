@@ -98,7 +98,7 @@ def upload_document(
         raise HTTPException(status_code=404, detail="Repository not found")
 
     # Read file size
-    file.file.seek(0, 2)
+    file.file.seek(0, 2)# file is package cointainer which requires async methods and file.file is actual content inside file
     file_size = file.file.tell()
     file.file.seek(0)
 

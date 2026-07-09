@@ -32,7 +32,6 @@ def list_repos(
         .all()
     )
     
-    # Custom serialization since document_count is dynamic
     results = []
     for r in repos:
         results.append({
@@ -40,7 +39,7 @@ def list_repos(
             "name": r.name,
             "description": r.description,
             "created_at": r.created_at,
-            "invoice_count": len(r.documents) # Keep name invoice_count for frontend compat if needed
+            "invoice_count": len(r.documents) 
         })
     return {"success": True, "data": results}
 

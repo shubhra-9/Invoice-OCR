@@ -22,7 +22,6 @@ def preprocess_image(image):
         interpolation=cv2.INTER_CUBIC
     )
 
-    # ── Sharpen ────────────────────────────────────────────────────
     sharpen_kernel = np.array([[0, -1,  0],
                                [-1,  5, -1],
                                [0, -1,  0]])
@@ -38,9 +37,6 @@ def preprocess_image(image):
         4
     )
 
-    # ── Detect & whiteout ₹ symbol regions ─────────────────────────
-    # ₹ symbol is a small dark cluster — find contours and remove
-    # ones that match the size of a currency symbol
     inverted = cv2.bitwise_not(binary)
     contours, _ = cv2.findContours(
         inverted,
@@ -52,10 +48,10 @@ def preprocess_image(image):
         x, y, w, h = cv2.boundingRect(contour)
         aspect_ratio = w / float(h) if h > 0 else 0
 
-        # ₹ symbol is roughly square, small width, medium height
-        # These size ranges are tuned for 3x upscaled 400dpi image
+       
+        # These size ranges are tuned for 3x upscaled 400dpi image for rupee sign 
         if (8 < w < 55) and (10 < h < 60) and (0.3 < aspect_ratio < 1.2):
-            # Check darkness — ₹ is a dense dark symbol
+           
             region = inverted[y:y+h, x:x+w]
             dark_pixel_ratio = np.sum(region > 0) / (w * h)
 

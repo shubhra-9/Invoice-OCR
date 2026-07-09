@@ -21,8 +21,7 @@ def clean_text(text: str) -> str:
     text = re.sub(r"X(?=\d)", "₹", text)
     text = re.sub(r"<(?=\d)", "₹", text)
 
-    # & only replace when between spaces (not inside words like "Integration & Testing")
-    text = re.sub(r"\s&\s", " & ", text)   # keep & between words as-is
+    text = re.sub(r"\s&\s", " & ", text)
 
     text = text.replace("|", " ")
     text = text.replace("—", "-")
